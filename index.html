@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Captação de Representantes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    .kanban-col { min-width: 220px; max-width: 220px; }
+    .card-drag { cursor: grab; transition: box-shadow 0.15s, transform 0.15s; }
+    .card-drag:active { cursor: grabbing; }
+    .card-drag.dragging { opacity: 0.45; transform: scale(0.97); }
+    .drop-target { outline: 2px dashed #3b82f6; outline-offset: 2px; background: rgba(59,130,246,0.07); }
+    .phase-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .badge { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 999px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 50; display: flex; align-items: center; justify-content: center; }
+    .modal-box { background: #1e293b; border-radius: 12px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; border: 1px solid #334155; }
+    textarea:focus, input:focus, select:focus { outline: 2px solid #3b82f6; outline-offset: 1px; }
+    .note-item { background: #0f172a; border-radius: 6px; padding: 8px 10px; font-size: 13px; border-left: 3px solid #3b82f6; }
+    .btn-primary { background: #2563eb; color: #fff; border-radius: 8px; padding: 8px 18px; font-weight: 600; font-size: 14px; transition: background 0.15s; border: none; cursor: pointer; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-ghost { background: transparent; color: #94a3b8; border-radius: 8px; padding: 6px 12px; font-size: 13px; border: 1px solid #334155; cursor: pointer; transition: all 0.15s; }
+    .btn-ghost:hover { background: #334155; color: #e2e8f0; }
+    .btn-danger { background: #dc2626; color: #fff; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: background 0.15s; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-success { background: #16a34a; color: #fff; border-radius: 8px; padding: 8px 18px; font-weight: 600; font-size: 14px; transition: background 0.15s; border: none; cursor: pointer; }
+    .btn-success:hover { background: #15803d; }
+    .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #334155; color: #94a3b8; }
+    .completed-card { border-left: 4px solid #22c55e !important; }
+    .input-field { background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 8px; padding: 8px 12px; width: 100%; font-size: 14px; }
+    input::placeholder, textarea::placeholder { color: #475569; }
+    select option { background: #1e293b; }
+    .progress-bar-bg { background: #1e293b; border-radius: 999px; height: 5px; }
+    .progress-bar-fill { height: 5px; border-radius: 999px; background: linear-gradient(90deg, #3b82f6, #22c55e); transition: width 0.4s; }
+    .tab-btn { padding: 8px 20px; font-size: 14px; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; transition: all 0.15s; color: #94a3b8; background: transparent; }
+    .tab-btn.active { background: #1e40af; color: #fff; }
+    .tab-btn:not(.active):hover { background: #1e293b; color: #e2e8f0; }
+    .kpi-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+    .chart-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+    .funnel-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .funnel-bar-wrap { flex: 1; background: #0f172a; border-radius: 4px; height: 22px; overflow: hidden; }
+    .funnel-bar { height: 100%; border-radius: 4px; transition: width 0.5s; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap; }
+    @media print {
+      body { background: #fff !important; color: #000 !important; }
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+    }
+    .print-only { display: none; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-200">
+
+<!-- HEADER -->
+<header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+  <div class="flex items-center gap-3">
+    <div class="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="font-bold text-white text-base leading-tight">Captação de Representantes</h1>
+      <p class="text-xs text-slate-400">Funil de onboarding</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <!-- TABS -->
+    <div class="flex items-center gap-1 bg-slate-800 rounded-lg p-1 mr-2">
+      <button id="tab-kanban" class="tab-btn active" onclick="switchTab('kanban')">
+        <span class="flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1" stroke-width="2"/><rect x="14" y="3" width="7" height="10" rx="1" stroke-width="2"/></svg>
+          Funil
+        </span>
+      </button>
+      <button id="tab-dash" class="tab-btn" onclick="switchTab('dash')">
+        <span class="flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Dashboard
+        </span>
+      </button>
+    </div>
+    <div id="stats-bar" class="hidden sm:flex items-center gap-4 text-xs text-slate-400 mr-1"></div>
+    <!-- Sync status -->
+    <div id="sync-status" title="Status da sincronização" class="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border border-slate-700 cursor-pointer" onclick="openConfigModal()">
+      <span id="sync-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+      <span id="sync-label" class="text-slate-400">Local</span>
+    </div>
+    <button onclick="openConfigModal()" class="btn-ghost flex items-center gap-1.5 text-xs" title="Configurar Google Sheets">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
+      Configurar
+    </button>
+    <button onclick="carregarDadosExemplo()" class="btn-ghost flex items-center gap-1.5 text-xs" title="Preencher com representantes de exemplo">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M4 7h16M4 7l2-3h12l2 3"/></svg>
+      Exemplo
+    </button>
+    <button onclick="openAddModal()" class="btn-primary flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Novo
+    </button>
+  </div>
+</header>
+
+<!-- SEARCH BAR (kanban only) -->
+<div id="search-bar" class="bg-slate-900 border-b border-slate-800 px-6 py-2 flex items-center gap-3">
+  <svg class="w-4 h-4 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+  </svg>
+  <input id="search-input" type="text" placeholder="Buscar representante..." oninput="renderBoard()" class="bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none flex-1" />
+  <div class="flex items-center gap-2">
+    <label class="text-xs text-slate-400">Fase:</label>
+    <select id="filter-phase" onchange="renderBoard()" class="bg-slate-800 text-slate-300 text-xs border border-slate-700 rounded px-2 py-1 outline-none">
+      <option value="">Todas</option>
+    </select>
+  </div>
+</div>
+
+<!-- BOARD (kanban) -->
+<div id="view-kanban" class="overflow-x-auto">
+  <div id="board" class="flex gap-3 p-5 min-h-screen items-start" style="min-width: max-content;"></div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="view-dash" class="hidden p-6 max-w-7xl mx-auto">
+
+  <!-- KPI row -->
+  <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4 mb-6" id="kpi-row"></div>
+
+  <!-- Charts row 1 -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+    <div class="chart-card lg:col-span-2">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-white text-sm">Distribuição por Fase</h3>
+        <span class="text-xs text-slate-400">representantes em cada fase</span>
+      </div>
+      <canvas id="chart-phases" height="90"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-white text-sm">Status Geral</h3>
+      </div>
+      <canvas id="chart-status" height="180"></canvas>
+      <div id="chart-status-legend" class="mt-3 space-y-1"></div>
+    </div>
+  </div>
+
+  <!-- Funnel -->
+  <div class="chart-card mb-4">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-white text-sm">Funil de Conversao — Assertividade por Fase</h3>
+      <span class="text-xs text-slate-400">% que passou por cada fase em relacao ao total captado</span>
+    </div>
+    <div id="funnel-chart" class="space-y-1.5"></div>
+  </div>
+
+  <!-- Charts row 2 -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+    <div class="chart-card">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-white text-sm">Captacoes por Mes</h3>
+      </div>
+      <canvas id="chart-monthly" height="160"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-white text-sm">Tempo Medio por Fase (dias)</h3>
+        <span class="text-xs text-slate-400">média de dias nesta fase</span>
+      </div>
+      <canvas id="chart-time" height="160"></canvas>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="chart-card mb-4">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-white text-sm">Lista Completa</h3>
+      <button onclick="emitirRelatorio()" class="btn-success flex items-center gap-2 text-sm px-4 py-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+        Emitir Relatorio
+      </button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm" id="reps-table">
+        <thead>
+          <tr class="border-b border-slate-700 text-xs text-slate-400 uppercase tracking-wider">
+            <th class="text-left py-2 pr-4 font-semibold">Nome</th>
+            <th class="text-left py-2 pr-4 font-semibold">Cidade</th>
+            <th class="text-left py-2 pr-4 font-semibold">Fase Atual</th>
+            <th class="text-left py-2 pr-4 font-semibold">Progresso</th>
+            <th class="text-left py-2 pr-4 font-semibold">Dias na Fase</th>
+            <th class="text-left py-2 font-semibold">Cadastro</th>
+          </tr>
+        </thead>
+        <tbody id="reps-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODALS ─────────────────────────────────────────────────────────────────── -->
+
+<!-- CONFIG MODAL (Google Sheets) -->
+<div id="config-modal" class="modal-overlay hidden">
+  <div class="modal-box p-6" style="max-width:600px">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-lg font-bold text-white flex items-center gap-2">
+        <svg class="w-5 h-5 text-green-400" viewBox="0 0 24 24" fill="currentColor"><path d="M11.318 10.455L8.455 7.591 3 13.046V21h7.954l5.455-5.455-5.091-5.09zm1.414-1.414l2.863 2.863 1.98-1.98-2.862-2.862-1.981 1.98zM19.99 4.01a2 2 0 00-2.828 0l-1.396 1.396 2.828 2.828 1.396-1.396a2 2 0 000-2.828z"/></svg>
+        Integração com Google Sheets
+      </h2>
+      <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Passo a passo -->
+    <div class="bg-slate-900 rounded-xl p-4 mb-4 border border-slate-700 text-sm space-y-2">
+      <p class="font-semibold text-white mb-3">Como configurar (faça uma vez):</p>
+      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span><span class="text-slate-300">Abra uma planilha Google Sheets e vá em <b class="text-white">Extensões &gt; Apps Script</b></span></div>
+      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span><span class="text-slate-300">Apague o conteúdo e cole o código do arquivo <b class="text-white">apps-script.gs</b> (está na pasta do projeto)</span></div>
+      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span><span class="text-slate-300">Clique em <b class="text-white">Implantar &gt; Nova implantação</b> · Tipo: <b class="text-white">App da Web</b> · Acesso: <b class="text-white">Qualquer pessoa</b></span></div>
+      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">4</span><span class="text-slate-300">Copie a <b class="text-white">URL da implantação</b> e cole abaixo</span></div>
+    </div>
+
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">URL do Apps Script *</label>
+      <input id="config-url" type="url" placeholder="https://script.google.com/macros/s/AKfyc.../exec" class="input-field" />
+      <p class="text-xs text-slate-500 mt-1">A URL termina sempre com <code class="text-slate-300">/exec</code></p>
+    </div>
+
+    <div id="config-test-result" class="hidden mb-4 rounded-lg p-3 text-sm"></div>
+
+    <div class="flex items-center justify-between gap-2">
+      <div class="flex gap-2">
+        <button onclick="testarConexao()" class="btn-ghost">Testar conexão</button>
+        <button onclick="desconectarSheets()" class="btn-danger text-xs">Desconectar</button>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="closeConfigModal()" class="btn-ghost">Cancelar</button>
+        <button onclick="salvarConfig()" class="btn-primary">Salvar e sincronizar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div id="form-modal" class="modal-overlay hidden">
+  <div class="modal-box p-6">
+    <div class="flex items-center justify-between mb-5">
+      <h2 id="form-modal-title" class="text-lg font-bold text-white">Novo Representante</h2>
+      <button onclick="closeFormModal()" class="text-slate-400 hover:text-white transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="rep-form" onsubmit="saveRep(event)" class="space-y-4">
+      <div>
+        <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Nome completo *</label>
+        <input id="f-name" type="text" required placeholder="Nome do representante" class="input-field" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Telefone</label>
+          <input id="f-phone" type="text" placeholder="(00) 00000-0000" class="input-field" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">E-mail</label>
+          <input id="f-email" type="email" placeholder="email@exemplo.com" class="input-field" />
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Cidade / UF</label>
+          <input id="f-city" type="text" placeholder="São Paulo / SP" class="input-field" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Fase inicial</label>
+          <select id="f-phase" class="input-field"></select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Observação inicial</label>
+        <textarea id="f-note" rows="2" placeholder="Anotações iniciais..." class="input-field resize-none"></textarea>
+      </div>
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" onclick="closeFormModal()" class="btn-ghost">Cancelar</button>
+        <button type="submit" class="btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div id="detail-modal" class="modal-overlay hidden">
+  <div class="modal-box p-0"><div id="detail-content"></div></div>
+</div>
+
+<!-- CONFIRM DELETE MODAL -->
+<div id="confirm-modal" class="modal-overlay hidden">
+  <div class="modal-box p-6 max-w-sm">
+    <h3 class="text-white font-bold text-base mb-2">Excluir representante?</h3>
+    <p class="text-slate-400 text-sm mb-5">Esta ação não pode ser desfeita.</p>
+    <div class="flex justify-end gap-2">
+      <button onclick="closeConfirm()" class="btn-ghost">Cancelar</button>
+      <button id="confirm-delete-btn" class="btn-danger">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const PHASES = [
+  { id: 'captacao',         label: 'Captação',                 color: '#6366f1', desc: 'Prospecção e identificação do profissional.' },
+  { id: 'primeiro_contato', label: 'Primeiro Contato',         color: '#8b5cf6', desc: 'Contato inicial feito com o profissional.' },
+  { id: 'apresentacao',     label: 'Apresentação da Proposta', color: '#a855f7', desc: 'Proposta inicial apresentada ao representante.' },
+  { id: 'envio_doc',        label: 'Envio de Documentação',    color: '#ec4899', desc: 'Contrato de representação enviado para assinatura.' },
+  { id: 'assinatura',       label: 'Assinatura do Contrato',   color: '#f43f5e', desc: 'Representante assinou o contrato.' },
+  { id: 'reconhecimento',   label: 'Reconhecimento de Firma',  color: '#f97316', desc: 'Assinatura reconhecida em cartório.' },
+  { id: 'devolucao',        label: 'Devolução do Contrato',    color: '#f59e0b', desc: 'Contrato devolvido à empresa.' },
+  { id: 'cadastro',         label: 'Cadastro no Sistema',      color: '#eab308', desc: 'Representante cadastrado no sistema interno.' },
+  { id: 'codigo',           label: 'Liberação do Código',      color: '#84cc16', desc: 'Código de representante liberado.' },
+  { id: 'material',         label: 'Envio de Material',        color: '#22c55e', desc: 'Material de trabalho enviado ao representante.' },
+  { id: 'treinamento',      label: 'Treinamento',              color: '#10b981', desc: 'Treinamento realizado.' },
+  { id: 'boas_vindas',      label: 'Reunião de Boas-Vindas',   color: '#14b8a6', desc: 'Reunião de boas-vindas com a gerência.' },
+  { id: 'acompanhamento',   label: 'Acompanhamento',           color: '#0ea5e9', desc: 'Acompanhamento do representante até a venda.' },
+  { id: 'concluido',        label: 'Primeira Venda',           color: '#22c55e', desc: 'Representante realizou a primeira venda. Processo concluído!', final: true },
+];
+const PHASE_INDEX = Object.fromEntries(PHASES.map((p, i) => [p.id, i]));
+
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+function loadData() { try { return JSON.parse(localStorage.getItem('reps_v2') || '[]'); } catch { return []; } }
+function saveData(r) { localStorage.setItem('reps_v2', JSON.stringify(r)); }
+
+let reps = loadData();
+let editingId = null, deletingId = null, dragId = null;
+let chartPhases = null, chartStatus = null, chartMonthly = null, chartTime = null;
+let currentTab = 'kanban';
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function fmt(ts) { if (!ts) return '—'; const d = new Date(ts); return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+function fmtDate(ts) { if (!ts) return '—'; return new Date(ts).toLocaleDateString('pt-BR'); }
+function phaseById(id) { return PHASES.find(p => p.id === id) || PHASES[0]; }
+function phaseProgress(phaseId) { const idx = PHASE_INDEX[phaseId] ?? 0; return Math.round(((idx+1)/PHASES.length)*100); }
+function escHtml(s) { if (!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── TAB SWITCHING ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-kanban').classList.toggle('active', tab === 'kanban');
+  document.getElementById('tab-dash').classList.toggle('active', tab === 'dash');
+  document.getElementById('view-kanban').classList.toggle('hidden', tab !== 'kanban');
+  document.getElementById('search-bar').classList.toggle('hidden', tab !== 'kanban');
+  document.getElementById('view-dash').classList.toggle('hidden', tab !== 'dash');
+  if (tab === 'dash') renderDashboard();
+}
+
+// ─── BOARD ────────────────────────────────────────────────────────────────────
+function renderBoard() {
+  const q = document.getElementById('search-input').value.toLowerCase().trim();
+  const fp = document.getElementById('filter-phase').value;
+  const filtered = reps.filter(r => {
+    const mq = !q || r.name.toLowerCase().includes(q) || (r.city||'').toLowerCase().includes(q) || (r.phone||'').includes(q);
+    const mp = !fp || r.phase === fp;
+    return mq && mp;
+  });
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  PHASES.forEach(phase => {
+    const cards = filtered.filter(r => r.phase === phase.id);
+    const col = document.createElement('div');
+    col.className = 'kanban-col flex flex-col gap-2';
+    col.dataset.phase = phase.id;
+    col.addEventListener('dragover', onDragOver);
+    col.addEventListener('drop', onDrop);
+    col.addEventListener('dragleave', onDragLeave);
+    col.innerHTML = `
+      <div class="flex items-center gap-2 px-1 mb-1">
+        <div class="phase-dot" style="background:${phase.color}"></div>
+        <span class="text-xs font-semibold text-slate-300 flex-1 leading-tight" title="${phase.desc}">${phase.label}</span>
+        <span class="badge" style="background:${phase.color}22;color:${phase.color}">${cards.length}</span>
+      </div>
+      <div class="cards-wrapper flex flex-col gap-2 min-h-12" id="col-${phase.id}"></div>`;
+    board.appendChild(col);
+    const wrap = col.querySelector('.cards-wrapper');
+    cards.forEach(r => wrap.appendChild(buildCard(r, phase)));
+  });
+  updateStats();
+}
+
+function buildCard(r, phase) {
+  const el = document.createElement('div');
+  el.className = `card-drag bg-slate-800 rounded-xl p-3 border border-slate-700 hover:border-slate-500 transition-all select-none ${phase.final?'completed-card':''}`;
+  el.draggable = true; el.dataset.id = r.id;
+  el.addEventListener('dragstart', onDragStart);
+  el.addEventListener('dragend', onDragEnd);
+  const progress = phaseProgress(r.phase);
+  const lastNote = r.notes&&r.notes.length ? r.notes[r.notes.length-1] : null;
+  const daysSince = r.phaseChangedAt ? Math.floor((Date.now()-r.phaseChangedAt)/86400000) : 0;
+  el.innerHTML = `
+    <div class="flex items-start justify-between gap-1 mb-2">
+      <span class="text-sm font-semibold text-white leading-tight cursor-pointer hover:text-blue-400 transition-colors" onclick="openDetail('${r.id}')">${escHtml(r.name)}</span>
+      <button onclick="openDetail('${r.id}')" class="text-slate-500 hover:text-slate-300 flex-shrink-0 mt-0.5 transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+    ${r.city?`<div class="text-xs text-slate-400 mb-1">${escHtml(r.city)}</div>`:''}
+    ${r.phone?`<div class="text-xs text-slate-500 mb-1">${escHtml(r.phone)}</div>`:''}
+    <div class="progress-bar-bg mt-2 mb-1"><div class="progress-bar-fill" style="width:${progress}%;background:linear-gradient(90deg,${phase.color},${phase.final?'#22c55e':'#3b82f6'})"></div></div>
+    <div class="flex items-center justify-between mt-1">
+      <span class="text-slate-500 text-xs">${progress}%</span>
+      ${daysSince>0?`<span class="text-xs text-slate-500">${daysSince}d nesta fase</span>`:''}
+    </div>
+    ${lastNote?`<div class="mt-2 text-xs text-slate-400 truncate italic">"${escHtml(lastNote.text)}"</div>`:''}`;
+  return el;
+}
+
+function updateStats() {
+  const total = reps.length, concluded = reps.filter(r=>r.phase==='concluido').length;
+  const conv = total ? Math.round((concluded/total)*100) : 0;
+  document.getElementById('stats-bar').innerHTML = `
+    <span><b class="text-white">${total}</b> total</span>
+    <span><b class="text-blue-400">${total-concluded}</b> ativos</span>
+    <span><b class="text-green-400">${concluded}</b> concluídos</span>
+    <span><b class="text-yellow-400">${conv}%</b> conversão</span>`;
+}
+
+// ─── FILTER SELECT ────────────────────────────────────────────────────────────
+function populatePhaseFilter() {
+  ['filter-phase','f-phase'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    if (id === 'filter-phase') sel.innerHTML = '<option value="">Todas as fases</option>';
+    else sel.innerHTML = '';
+    PHASES.forEach(p => { const o=document.createElement('option'); o.value=p.id; o.textContent=p.label; sel.appendChild(o); });
+  });
+}
+
+// ─── DRAG & DROP ──────────────────────────────────────────────────────────────
+function onDragStart(e) { dragId=e.currentTarget.dataset.id; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; }
+function onDragEnd(e) { e.currentTarget.classList.remove('dragging'); document.querySelectorAll('.drop-target').forEach(el=>el.classList.remove('drop-target')); }
+function onDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect='move'; const col=e.currentTarget; if(!col.classList.contains('drop-target')){document.querySelectorAll('.drop-target').forEach(el=>el.classList.remove('drop-target'));col.classList.add('drop-target');} }
+function onDragLeave(e) { if(!e.currentTarget.contains(e.relatedTarget))e.currentTarget.classList.remove('drop-target'); }
+function onDrop(e) {
+  e.preventDefault(); const col=e.currentTarget; col.classList.remove('drop-target');
+  const tp=col.dataset.phase; if(!dragId||!tp) return;
+  const rep=reps.find(r=>r.id===dragId); if(!rep||rep.phase===tp) return;
+  if(!rep.history) rep.history=[];
+  rep.history.push({from:rep.phase,to:tp,at:Date.now()});
+  rep.phase=tp; rep.phaseChangedAt=Date.now();
+  saveData(reps); renderBoard();
+}
+
+// ─── ADD / EDIT ───────────────────────────────────────────────────────────────
+function openAddModal() {
+  editingId=null;
+  document.getElementById('form-modal-title').textContent='Novo Representante';
+  document.getElementById('rep-form').reset();
+  document.getElementById('f-phase').value=PHASES[0].id;
+  document.getElementById('form-modal').classList.remove('hidden');
+}
+function openEditModal(id) {
+  const r=reps.find(x=>x.id===id); if(!r) return;
+  editingId=id;
+  document.getElementById('form-modal-title').textContent='Editar Representante';
+  document.getElementById('f-name').value=r.name||'';
+  document.getElementById('f-phone').value=r.phone||'';
+  document.getElementById('f-email').value=r.email||'';
+  document.getElementById('f-city').value=r.city||'';
+  document.getElementById('f-phase').value=r.phase||PHASES[0].id;
+  document.getElementById('f-note').value='';
+  closeDetail();
+  document.getElementById('form-modal').classList.remove('hidden');
+}
+function closeFormModal() { document.getElementById('form-modal').classList.add('hidden'); editingId=null; }
+function saveRep(e) {
+  e.preventDefault();
+  const name=document.getElementById('f-name').value.trim();
+  const phone=document.getElementById('f-phone').value.trim();
+  const email=document.getElementById('f-email').value.trim();
+  const city=document.getElementById('f-city').value.trim();
+  const phase=document.getElementById('f-phase').value;
+  const note=document.getElementById('f-note').value.trim();
+  if(!name) return;
+  if(editingId) {
+    const rep=reps.find(r=>r.id===editingId);
+    if(rep) {
+      if(rep.phase!==phase){if(!rep.history)rep.history=[];rep.history.push({from:rep.phase,to:phase,at:Date.now()});rep.phaseChangedAt=Date.now();}
+      rep.name=name;rep.phone=phone;rep.email=email;rep.city=city;rep.phase=phase;
+      if(note){if(!rep.notes)rep.notes=[];rep.notes.push({text:note,at:Date.now()});}
+    }
+  } else {
+    const rep={id:uid(),name,phone,email,city,phase,notes:[],history:[],createdAt:Date.now(),phaseChangedAt:Date.now()};
+    if(note) rep.notes.push({text:note,at:Date.now()});
+    reps.unshift(rep);
+  }
+  saveData(reps); closeFormModal(); renderBoard();
+  if(currentTab==='dash') renderDashboard();
+}
+
+// ─── DETAIL ───────────────────────────────────────────────────────────────────
+function openDetail(id) { const r=reps.find(x=>x.id===id); if(!r) return; renderDetail(r); document.getElementById('detail-modal').classList.remove('hidden'); }
+function closeDetail() { document.getElementById('detail-modal').classList.add('hidden'); }
+function renderDetail(r) {
+  const phase=phaseById(r.phase), progress=phaseProgress(r.phase);
+  const phaseIdx=PHASE_INDEX[r.phase]??0;
+  const prev=phaseIdx>0?PHASES[phaseIdx-1]:null, next=phaseIdx<PHASES.length-1?PHASES[phaseIdx+1]:null;
+  const notesHtml=(r.notes||[]).slice().reverse().map(n=>`<div class="note-item mb-2"><div class="text-slate-200">${escHtml(n.text)}</div><div class="text-slate-500 text-xs mt-1">${fmt(n.at)}</div></div>`).join('')||'<p class="text-slate-500 text-xs italic">Sem anotações.</p>';
+  const histHtml=(r.history||[]).slice().reverse().slice(0,8).map(h=>`<div class="flex items-center gap-2 text-xs text-slate-400 py-1 border-b border-slate-700"><span>${phaseById(h.from).label}</span><svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg><span class="text-slate-200">${phaseById(h.to).label}</span><span class="ml-auto text-slate-500">${fmt(h.at)}</span></div>`).join('')||'<p class="text-slate-500 text-xs italic">Sem histórico.</p>';
+  document.getElementById('detail-content').innerHTML=`
+    <div class="p-6">
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <div class="flex-1">
+          <h2 class="text-xl font-bold text-white">${escHtml(r.name)}</h2>
+          <div class="flex items-center gap-2 mt-1 flex-wrap">
+            ${r.city?`<span class="tag">${escHtml(r.city)}</span>`:''}
+            ${r.email?`<span class="tag">${escHtml(r.email)}</span>`:''}
+            ${r.phone?`<span class="tag">${escHtml(r.phone)}</span>`:''}
+          </div>
+        </div>
+        <button onclick="closeDetail()" class="text-slate-400 hover:text-white flex-shrink-0">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="bg-slate-900 rounded-xl p-4 mb-4 border border-slate-700">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="phase-dot" style="background:${phase.color}"></div>
+          <span class="font-semibold text-white text-sm">${phase.label}</span>
+          <span class="ml-auto text-xs text-slate-400">${progress}% concluído</span>
+        </div>
+        <div class="progress-bar-bg mb-2"><div class="progress-bar-fill" style="width:${progress}%;background:linear-gradient(90deg,${phase.color},${phase.final?'#22c55e':'#3b82f6'})"></div></div>
+        <p class="text-xs text-slate-400">${phase.desc}</p>
+      </div>
+      ${!phase.final?`<div class="flex gap-2 mb-4">${prev?`<button onclick="movePhase('${r.id}','${prev.id}')" class="btn-ghost flex-1 text-center text-xs">← ${prev.label}</button>`:''} ${next?`<button onclick="movePhase('${r.id}','${next.id}')" class="btn-primary flex-1 text-center text-xs">${next.label} →</button>`:''}</div>`:`<div class="bg-green-900/30 border border-green-700 rounded-xl p-3 mb-4 text-center"><span class="text-green-400 font-bold">Processo concluído! Primeira venda realizada.</span></div>`}
+      <div class="mb-4">
+        <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Nova Anotação</label>
+        <div class="flex gap-2"><textarea id="new-note-text" rows="2" placeholder="Adicionar anotação..." class="input-field resize-none flex-1"></textarea><button onclick="addNote('${r.id}')" class="btn-primary self-end px-3">Salvar</button></div>
+      </div>
+      <div class="mb-4">
+        <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Mover para fase</label>
+        <div class="flex gap-2"><select id="jump-phase-sel" class="input-field flex-1">${PHASES.map(p=>`<option value="${p.id}"${p.id===r.phase?' selected':''}>${p.label}</option>`).join('')}</select><button onclick="jumpPhase('${r.id}')" class="btn-ghost self-end px-3">Mover</button></div>
+      </div>
+      <div class="mb-4"><div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Anotações</div>${notesHtml}</div>
+      <div class="mb-4"><div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Histórico de fases</div>${histHtml}</div>
+      <div class="flex justify-between items-center pt-2 border-t border-slate-700">
+        <div class="text-xs text-slate-500">Cadastrado em ${fmt(r.createdAt)}</div>
+        <div class="flex gap-2"><button onclick="openEditModal('${r.id}')" class="btn-ghost">Editar</button><button onclick="confirmDelete('${r.id}')" class="btn-danger">Excluir</button></div>
+      </div>
+    </div>`;
+}
+
+function movePhase(id,phaseId) {
+  const rep=reps.find(r=>r.id===id); if(!rep||rep.phase===phaseId) return;
+  if(!rep.history) rep.history=[];
+  rep.history.push({from:rep.phase,to:phaseId,at:Date.now()});
+  rep.phase=phaseId; rep.phaseChangedAt=Date.now();
+  saveData(reps); renderBoard(); renderDetail(rep);
+  if(currentTab==='dash') renderDashboard();
+}
+function jumpPhase(id) { const s=document.getElementById('jump-phase-sel'); if(s) movePhase(id,s.value); }
+function addNote(id) {
+  const rep=reps.find(r=>r.id===id); const text=document.getElementById('new-note-text').value.trim();
+  if(!rep||!text) return;
+  if(!rep.notes) rep.notes=[];
+  rep.notes.push({text,at:Date.now()}); saveData(reps); renderBoard(); renderDetail(rep);
+}
+
+// ─── DELETE ───────────────────────────────────────────────────────────────────
+function confirmDelete(id) { deletingId=id; document.getElementById('confirm-modal').classList.remove('hidden'); }
+function closeConfirm() { document.getElementById('confirm-modal').classList.add('hidden'); deletingId=null; }
+document.getElementById('confirm-delete-btn').addEventListener('click',()=>{
+  if(!deletingId) return; reps=reps.filter(r=>r.id!==deletingId);
+  saveData(reps); closeConfirm(); closeDetail(); renderBoard();
+  if(currentTab==='dash') renderDashboard();
+});
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function computeMetrics() {
+  const total=reps.length;
+  const concluded=reps.filter(r=>r.phase==='concluido').length;
+  const active=total-concluded;
+  const convRate=total?+(concluded/total*100).toFixed(1):0;
+
+  // distribuição por fase
+  const byPhase={};
+  PHASES.forEach(p=>{ byPhase[p.id]=reps.filter(r=>r.phase===p.id).length; });
+
+  // captações por mês (últimos 12 meses)
+  const monthly={};
+  reps.forEach(r=>{
+    if(!r.createdAt) return;
+    const d=new Date(r.createdAt), key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    monthly[key]=(monthly[key]||0)+1;
+  });
+  const now=new Date(); const months=[];
+  for(let i=11;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months.push({key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,label:d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'})});
+  }
+
+  // tempo médio em cada fase (via history)
+  const phaseTimeSum={}, phaseTimeCount={};
+  reps.forEach(r=>{
+    if(!r.history||!r.history.length) return;
+    const entries=[...r.history.map(h=>({phase:h.from,at:h.at}))];
+    if(r.createdAt) entries.unshift({phase:r.phase,at:r.createdAt});
+    r.history.forEach((h,i)=>{
+      const entry=entries[i]; if(!entry) return;
+      const days=(h.at-entry.at)/86400000;
+      if(days>=0&&days<3650){
+        phaseTimeSum[h.from]=(phaseTimeSum[h.from]||0)+days;
+        phaseTimeCount[h.from]=(phaseTimeCount[h.from]||0)+1;
+      }
+    });
+  });
+
+  // funil: quantos representantes JÁ PASSARAM por cada fase (atingiram ou ultrapassaram)
+  const funnelCount=PHASES.map(p=>{
+    const idx=PHASE_INDEX[p.id];
+    return reps.filter(r=>(PHASE_INDEX[r.phase]??0)>=idx).length;
+  });
+
+  return {total,concluded,active,convRate,byPhase,monthly,months,funnelCount,phaseTimeSum,phaseTimeCount};
+}
+
+function renderDashboard() {
+  const m=computeMetrics();
+
+  // KPIs
+  const avgPhaseIdx=reps.length ? reps.reduce((s,r)=>(s+(PHASE_INDEX[r.phase]??0)),0)/reps.length : 0;
+  const dropAtFirst=m.total>0?+(( (m.byPhase['captacao']||0)/m.total)*100).toFixed(0):0;
+  const kpis=[
+    {label:'Total Captados', value:m.total, color:'#3b82f6', icon:'👥'},
+    {label:'Ativos no Funil', value:m.active, color:'#8b5cf6', icon:'⚡'},
+    {label:'Primeira Venda', value:m.concluded, color:'#22c55e', icon:'✅'},
+    {label:'Taxa de Conversão', value:m.convRate+'%', color:'#f59e0b', icon:'🎯'},
+    {label:'Progresso Médio', value:Math.round(((avgPhaseIdx+1)/PHASES.length)*100)+'%', color:'#0ea5e9', icon:'📈'},
+    {label:'Na Captação', value:m.byPhase['captacao']||0, color:'#6366f1', icon:'🔍'},
+  ];
+  document.getElementById('kpi-row').innerHTML=kpis.map(k=>`
+    <div class="kpi-card">
+      <div class="text-2xl mb-1">${k.icon}</div>
+      <div class="text-2xl font-bold" style="color:${k.color}">${k.value}</div>
+      <div class="text-xs text-slate-400 mt-1">${k.label}</div>
+    </div>`).join('');
+
+  // Chart: distribuição por fase
+  const phaseLabels=PHASES.map(p=>p.label.length>14?p.label.slice(0,13)+'…':p.label);
+  const phaseData=PHASES.map(p=>m.byPhase[p.id]||0);
+  const phaseColors=PHASES.map(p=>p.color);
+  if(chartPhases) chartPhases.destroy();
+  chartPhases=new Chart(document.getElementById('chart-phases'),{
+    type:'bar',
+    data:{labels:phaseLabels,datasets:[{label:'Representantes',data:phaseData,backgroundColor:phaseColors.map(c=>c+'bb'),borderColor:phaseColors,borderWidth:1.5,borderRadius:5}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',stepSize:1},grid:{color:'#334155'}}}}
+  });
+
+  // Chart: status (doughnut)
+  const statusData=[m.active, m.concluded];
+  const statusLabels=['Ativos','Concluídos'];
+  const statusColors=['#3b82f6','#22c55e'];
+  if(chartStatus) chartStatus.destroy();
+  chartStatus=new Chart(document.getElementById('chart-status'),{
+    type:'doughnut',
+    data:{labels:statusLabels,datasets:[{data:statusData,backgroundColor:statusColors,borderColor:'#1e293b',borderWidth:3}]},
+    options:{responsive:true,plugins:{legend:{display:false}},cutout:'65%'}
+  });
+  document.getElementById('chart-status-legend').innerHTML=statusLabels.map((l,i)=>`
+    <div class="flex items-center justify-between text-xs">
+      <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded-full" style="background:${statusColors[i]}"></div><span class="text-slate-300">${l}</span></div>
+      <span class="font-bold text-white">${statusData[i]}</span>
+    </div>`).join('');
+
+  // Funnel visual
+  const maxFunnel=m.funnelCount[0]||1;
+  document.getElementById('funnel-chart').innerHTML=PHASES.map((p,i)=>{
+    const count=m.funnelCount[i], pct=maxFunnel?Math.round(count/maxFunnel*100):0;
+    const convFromPrev=i>0&&m.funnelCount[i-1]>0?Math.round(count/m.funnelCount[i-1]*100):100;
+    return `<div class="funnel-row">
+      <div class="text-xs text-slate-400 w-40 flex-shrink-0 text-right pr-2 leading-tight">${p.label}</div>
+      <div class="funnel-bar-wrap">
+        <div class="funnel-bar" style="width:${pct}%;background:${p.color};min-width:${count>0?'24px':'0'}">${count>0?count:''}</div>
+      </div>
+      <div class="text-xs w-12 text-right" style="color:${p.color}">${pct}%</div>
+      <div class="text-xs w-16 text-right text-slate-500">${i>0?convFromPrev+'% conv.':''}</div>
+    </div>`;
+  }).join('');
+
+  // Chart: captações por mês
+  if(chartMonthly) chartMonthly.destroy();
+  chartMonthly=new Chart(document.getElementById('chart-monthly'),{
+    type:'bar',
+    data:{labels:m.months.map(x=>x.label),datasets:[{label:'Captações',data:m.months.map(x=>m.monthly[x.key]||0),backgroundColor:'#3b82f6bb',borderColor:'#3b82f6',borderWidth:1.5,borderRadius:5}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',stepSize:1},grid:{color:'#334155'}}}}
+  });
+
+  // Chart: tempo médio por fase
+  const timeLabels=[], timeData=[], timeColors=[];
+  PHASES.forEach(p=>{
+    if(m.phaseTimeCount[p.id]){
+      timeLabels.push(p.label.length>12?p.label.slice(0,11)+'…':p.label);
+      timeData.push(+(m.phaseTimeSum[p.id]/m.phaseTimeCount[p.id]).toFixed(1));
+      timeColors.push(p.color);
+    }
+  });
+  if(chartTime) chartTime.destroy();
+  chartTime=new Chart(document.getElementById('chart-time'),{
+    type:'bar',
+    data:{labels:timeLabels,datasets:[{label:'Dias (média)',data:timeData,backgroundColor:timeColors.map(c=>c+'bb'),borderColor:timeColors,borderWidth:1.5,borderRadius:5}]},
+    options:{responsive:true,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#334155'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#1e293b'}}}}
+  });
+
+  // Table
+  const sorted=[...reps].sort((a,b)=>(PHASE_INDEX[b.phase]??0)-(PHASE_INDEX[a.phase]??0));
+  document.getElementById('reps-table-body').innerHTML=sorted.map(r=>{
+    const phase=phaseById(r.phase), prog=phaseProgress(r.phase);
+    const days=r.phaseChangedAt?Math.floor((Date.now()-r.phaseChangedAt)/86400000):0;
+    return `<tr class="border-b border-slate-800 hover:bg-slate-800/50 transition-colors cursor-pointer" onclick="openDetail('${r.id}')">
+      <td class="py-2 pr-4 font-medium text-white">${escHtml(r.name)}</td>
+      <td class="py-2 pr-4 text-slate-400">${escHtml(r.city||'—')}</td>
+      <td class="py-2 pr-4"><span class="inline-flex items-center gap-1.5 text-xs"><span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${phase.color}"></span>${phase.label}</span></td>
+      <td class="py-2 pr-4">
+        <div class="flex items-center gap-2"><div class="w-20 bg-slate-700 rounded-full h-1.5"><div class="h-1.5 rounded-full" style="width:${prog}%;background:${phase.color}"></div></div><span class="text-xs text-slate-400">${prog}%</span></div>
+      </td>
+      <td class="py-2 pr-4 text-slate-400 text-xs">${days}d</td>
+      <td class="py-2 text-slate-500 text-xs">${fmtDate(r.createdAt)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── RELATÓRIO (PRINT) ────────────────────────────────────────────────────────
+function emitirRelatorio() {
+  const m=computeMetrics();
+  const today=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  const sorted=[...reps].sort((a,b)=>(PHASE_INDEX[b.phase]??0)-(PHASE_INDEX[a.phase]??0));
+
+  const funnelRows=PHASES.map((p,i)=>{
+    const count=m.funnelCount[i], maxF=m.funnelCount[0]||1;
+    const pct=maxF?Math.round(count/maxF*100):0;
+    const conv=i>0&&m.funnelCount[i-1]>0?Math.round(count/m.funnelCount[i-1]*100):100;
+    return `<tr style="border-bottom:1px solid #e2e8f0">
+      <td style="padding:6px 8px;font-size:12px">${p.label}</td>
+      <td style="padding:6px 8px;font-size:12px;text-align:center;font-weight:700">${count}</td>
+      <td style="padding:6px 8px;font-size:12px;text-align:center">${pct}%</td>
+      <td style="padding:6px 8px;font-size:12px;text-align:center;color:${conv<50?'#dc2626':conv<75?'#f59e0b':'#16a34a'}">${i>0?conv+'%':'—'}</td>
+    </tr>`;
+  }).join('');
+
+  const repRows=sorted.map(r=>{
+    const phase=phaseById(r.phase), prog=phaseProgress(r.phase);
+    const days=r.phaseChangedAt?Math.floor((Date.now()-r.phaseChangedAt)/86400000):0;
+    return `<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:5px 8px;font-size:11px">${escHtml(r.name)}</td>
+      <td style="padding:5px 8px;font-size:11px">${escHtml(r.phone||'—')}</td>
+      <td style="padding:5px 8px;font-size:11px">${escHtml(r.city||'—')}</td>
+      <td style="padding:5px 8px;font-size:11px">${phase.label}</td>
+      <td style="padding:5px 8px;font-size:11px;text-align:center">${prog}%</td>
+      <td style="padding:5px 8px;font-size:11px;text-align:center">${days}d</td>
+      <td style="padding:5px 8px;font-size:11px">${fmtDate(r.createdAt)}</td>
+    </tr>`;
+  }).join('');
+
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/>
+  <title>Relatório de Captação — ${today}</title>
+  <style>
+    body{font-family:'Segoe UI',sans-serif;color:#0f172a;background:#fff;margin:0;padding:24px}
+    h1{font-size:22px;margin:0 0 4px}
+    h2{font-size:15px;margin:24px 0 8px;color:#1d4ed8;border-bottom:2px solid #1d4ed8;padding-bottom:4px}
+    .subtitle{font-size:12px;color:#64748b;margin-bottom:20px}
+    .kpi-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+    .kpi{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;min-width:100px}
+    .kpi-val{font-size:24px;font-weight:800;color:#1d4ed8}
+    .kpi-label{font-size:11px;color:#64748b;margin-top:2px}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    th{background:#1e293b;color:#fff;font-size:11px;padding:8px;text-align:left;font-weight:600}
+    tr:nth-child(even){background:#f8fafc}
+    .footer{margin-top:32px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px;display:flex;justify-content:space-between}
+    @media print{.no-print{display:none}@page{margin:15mm}}
+  </style></head><body>
+  <div class="no-print" style="margin-bottom:16px"><button onclick="window.print()" style="background:#1d4ed8;color:#fff;border:none;border-radius:6px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer">Imprimir / Salvar PDF</button></div>
+  <h1>Relatório de Captação de Representantes</h1>
+  <div class="subtitle">Gerado em ${today} · Sistema de Onboarding</div>
+
+  <h2>Resumo Executivo</h2>
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-val">${m.total}</div><div class="kpi-label">Total Captados</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#7c3aed">${m.active}</div><div class="kpi-label">Ativos no Funil</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#16a34a">${m.concluded}</div><div class="kpi-label">Primeira Venda</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#d97706">${m.convRate}%</div><div class="kpi-label">Taxa de Conversão Global</div></div>
+  </div>
+
+  <h2>Funil de Conversão — Assertividade por Fase</h2>
+  <table>
+    <thead><tr><th>Fase</th><th style="text-align:center">Qtd</th><th style="text-align:center">% do Total</th><th style="text-align:center">Conversão da Fase</th></tr></thead>
+    <tbody>${funnelRows}</tbody>
+  </table>
+
+  <h2>Lista Detalhada de Representantes</h2>
+  <table>
+    <thead><tr><th>Nome</th><th>Telefone</th><th>Cidade</th><th>Fase Atual</th><th style="text-align:center">Progresso</th><th style="text-align:center">Dias na Fase</th><th>Cadastro</th></tr></thead>
+    <tbody>${repRows}</tbody>
+  </table>
+
+  <div class="footer">
+    <span>Captação de Representantes · Relatório Operacional</span>
+    <span>${today}</span>
+  </div>
+  </body></html>`;
+
+  const w=window.open('','_blank','width=1000,height=800');
+  w.document.write(html);
+  w.document.close();
+}
+
+// ─── OVERLAY CLOSE ────────────────────────────────────────────────────────────
+document.getElementById('form-modal').addEventListener('click',function(e){if(e.target===this)closeFormModal();});
+document.getElementById('detail-modal').addEventListener('click',function(e){if(e.target===this)closeDetail();});
+document.getElementById('confirm-modal').addEventListener('click',function(e){if(e.target===this)closeConfirm();});
+document.getElementById('config-modal').addEventListener('click',function(e){if(e.target===this)closeConfigModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeFormModal();closeDetail();closeConfirm();closeConfigModal();}});
+
+// ─── GOOGLE SHEETS INTEGRATION ───────────────────────────────────────────────
+const SHEETS_URL_KEY = 'sheets_url_v1';
+
+function getSheetsUrl() { return localStorage.getItem(SHEETS_URL_KEY) || ''; }
+
+function setSyncStatus(state) {
+  const dot   = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  const states = {
+    local:   { color: 'bg-slate-500',  text: 'Local',       textColor: 'text-slate-400' },
+    syncing: { color: 'bg-yellow-400 animate-pulse', text: 'Sincronizando…', textColor: 'text-yellow-400' },
+    ok:      { color: 'bg-green-400',  text: 'Sheets ✓',    textColor: 'text-green-400' },
+    error:   { color: 'bg-red-400',    text: 'Erro Sheets',  textColor: 'text-red-400' },
+  };
+  const s = states[state] || states.local;
+  dot.className   = `w-2 h-2 rounded-full ${s.color}`;
+  label.className = `text-xs ${s.textColor}`;
+  label.textContent = s.text;
+}
+
+async function fetchFromSheets() {
+  const url = getSheetsUrl(); if (!url) return null;
+  setSyncStatus('syncing');
+  try {
+    const res  = await fetch(url, { method: 'GET' });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
+    setSyncStatus('ok');
+    return json.data;
+  } catch(e) {
+    setSyncStatus('error');
+    console.error('fetchFromSheets:', e);
+    return null;
+  }
+}
+
+async function pushToSheets(data) {
+  const url = getSheetsUrl(); if (!url) return;
+  setSyncStatus('syncing');
+  try {
+    const res  = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body:    JSON.stringify({ data }),
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
+    setSyncStatus('ok');
+  } catch(e) {
+    setSyncStatus('error');
+    console.error('pushToSheets:', e);
+  }
+}
+
+async function saveDataAndSync(data) {
+  localStorage.setItem('reps_v2', JSON.stringify(data));
+  await pushToSheets(data);
+}
+
+// ─── CONFIG MODAL ─────────────────────────────────────────────────────────────
+function openConfigModal() {
+  document.getElementById('config-url').value = getSheetsUrl();
+  document.getElementById('config-test-result').className = 'hidden mb-4 rounded-lg p-3 text-sm';
+  document.getElementById('config-modal').classList.remove('hidden');
+}
+function closeConfigModal() { document.getElementById('config-modal').classList.add('hidden'); }
+
+async function testarConexao() {
+  const url = document.getElementById('config-url').value.trim();
+  const box = document.getElementById('config-test-result');
+  if (!url) { showTestResult(box, false, 'Cole a URL antes de testar.'); return; }
+  showTestResult(box, null, 'Testando conexão…');
+  try {
+    const res  = await fetch(url);
+    const json = await res.json();
+    if (json.ok) {
+      showTestResult(box, true, `Conexão OK — ${json.data.length} representante(s) na planilha.`);
+    } else {
+      showTestResult(box, false, 'Resposta inválida: ' + (json.error || ''));
+    }
+  } catch(e) {
+    showTestResult(box, false, 'Falha na conexão: ' + e.message + '. Verifique se a implantação está ativa e com acesso "Qualquer pessoa".');
+  }
+}
+
+function showTestResult(box, ok, msg) {
+  box.className = `mb-4 rounded-lg p-3 text-sm ${ok === null ? 'bg-slate-700 text-slate-300' : ok ? 'bg-green-900/40 border border-green-700 text-green-300' : 'bg-red-900/40 border border-red-700 text-red-300'}`;
+  box.textContent = msg;
+}
+
+async function salvarConfig() {
+  const url = document.getElementById('config-url').value.trim();
+  if (!url) { alert('Cole a URL do Apps Script.'); return; }
+  if (!url.includes('script.google.com')) { alert('URL inválida. Deve ser uma URL do Google Apps Script.'); return; }
+  localStorage.setItem(SHEETS_URL_KEY, url);
+  closeConfigModal();
+  // Puxa dados da planilha (planilha tem prioridade sobre localStorage)
+  const remoteData = await fetchFromSheets();
+  if (remoteData !== null) {
+    reps = remoteData;
+    localStorage.setItem('reps_v2', JSON.stringify(reps));
+    renderBoard();
+    if (currentTab === 'dash') renderDashboard();
+    alert(`Sincronizado! ${reps.length} representante(s) carregado(s) da planilha.`);
+  } else {
+    // Planilha vazia ou erro — envia dados locais para a planilha
+    await pushToSheets(reps);
+    alert(`URL salva. Dados locais enviados para a planilha (${reps.length} representante(s)).`);
+  }
+}
+
+function desconectarSheets() {
+  if (!confirm('Desconectar do Google Sheets? Os dados locais são mantidos.')) return;
+  localStorage.removeItem(SHEETS_URL_KEY);
+  setSyncStatus('local');
+  closeConfigModal();
+}
+
+// Sobrescreve saveData para sincronizar automaticamente
+const _saveDataOriginal = saveData;
+function saveData(data) {
+  localStorage.setItem('reps_v2', JSON.stringify(data));
+  if (getSheetsUrl()) pushToSheets(data);
+}
+
+// ─── DADOS DE EXEMPLO ────────────────────────────────────────────────────────
+function carregarDadosExemplo() {
+  if(reps.length>0 && !confirm('Já existem dados cadastrados. Deseja SUBSTITUIR por dados de exemplo?')) return;
+
+  const ago = (dias, horas=0) => Date.now() - (dias*86400000) - (horas*3600000);
+
+  const exemplos = [
+    {
+      id: uid(), name: 'Carlos Eduardo Mendes', phone: '(11) 98547-3201', email: 'carlos.mendes@email.com', city: 'São Paulo / SP',
+      phase: 'concluido', createdAt: ago(90), phaseChangedAt: ago(3),
+      notes: [
+        {text:'Contato feito via indicação do Marcos. Perfil excelente, experiência em vendas B2B.', at: ago(90)},
+        {text:'Proposta aceita com entusiasmo. Enviado contrato por e-mail.', at: ago(75)},
+        {text:'Contrato devolvido assinado e reconhecido em cartório.', at: ago(55)},
+        {text:'Treinamento concluído com aproveitamento ótimo.', at: ago(20)},
+        {text:'Realizou primeira venda! Cliente: Indústria Paulista Ltda.', at: ago(3)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(88)},{from:'primeiro_contato',to:'apresentacao',at:ago(82)},
+        {from:'apresentacao',to:'envio_doc',at:ago(76)},{from:'envio_doc',to:'assinatura',at:ago(70)},
+        {from:'assinatura',to:'reconhecimento',at:ago(64)},{from:'reconhecimento',to:'devolucao',at:ago(55)},
+        {from:'devolucao',to:'cadastro',at:ago(50)},{from:'cadastro',to:'codigo',at:ago(45)},
+        {from:'codigo',to:'material',at:ago(40)},{from:'material',to:'treinamento',at:ago(30)},
+        {from:'treinamento',to:'boas_vindas',at:ago(15)},{from:'boas_vindas',to:'acompanhamento',at:ago(10)},
+        {from:'acompanhamento',to:'concluido',at:ago(3)},
+      ]
+    },
+    {
+      id: uid(), name: 'Fernanda Lima Souza', phone: '(21) 97632-8845', email: 'fernanda.lima@gmail.com', city: 'Rio de Janeiro / RJ',
+      phase: 'concluido', createdAt: ago(120), phaseChangedAt: ago(8),
+      notes: [
+        {text:'Captada na feira de negócios. Já tem carteira de clientes.', at: ago(120)},
+        {text:'Reunião de boas-vindas realizada com a gerência regional.', at: ago(25)},
+        {text:'Primeira venda fechada: R$ 4.800,00.', at: ago(8)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(118)},{from:'primeiro_contato',to:'apresentacao',at:ago(110)},
+        {from:'apresentacao',to:'envio_doc',at:ago(100)},{from:'envio_doc',to:'assinatura',at:ago(90)},
+        {from:'assinatura',to:'reconhecimento',at:ago(80)},{from:'reconhecimento',to:'devolucao',at:ago(72)},
+        {from:'devolucao',to:'cadastro',at:ago(65)},{from:'cadastro',to:'codigo',at:ago(58)},
+        {from:'codigo',to:'material',at:ago(50)},{from:'material',to:'treinamento',at:ago(40)},
+        {from:'treinamento',to:'boas_vindas',at:ago(25)},{from:'boas_vindas',to:'acompanhamento',at:ago(15)},
+        {from:'acompanhamento',to:'concluido',at:ago(8)},
+      ]
+    },
+    {
+      id: uid(), name: 'Roberto Alves Costa', phone: '(31) 99254-6612', email: 'roberto.ac@hotmail.com', city: 'Belo Horizonte / MG',
+      phase: 'acompanhamento', createdAt: ago(60), phaseChangedAt: ago(5),
+      notes: [
+        {text:'Indicação interna. Trabalhou 8 anos como representante autônomo.', at: ago(60)},
+        {text:'Treinamento concluído em 2 dias. Muito dedicado.', at: ago(18)},
+        {text:'Reunião de boas-vindas realizada com boa receptividade.', at: ago(10)},
+        {text:'Acompanhando pipeline — 3 prospects quentes em negociação.', at: ago(5)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(58)},{from:'primeiro_contato',to:'apresentacao',at:ago(52)},
+        {from:'apresentacao',to:'envio_doc',at:ago(46)},{from:'envio_doc',to:'assinatura',at:ago(40)},
+        {from:'assinatura',to:'reconhecimento',at:ago(35)},{from:'reconhecimento',to:'devolucao',at:ago(30)},
+        {from:'devolucao',to:'cadastro',at:ago(27)},{from:'cadastro',to:'codigo',at:ago(24)},
+        {from:'codigo',to:'material',at:ago(21)},{from:'material',to:'treinamento',at:ago(18)},
+        {from:'treinamento',to:'boas_vindas',at:ago(10)},{from:'boas_vindas',to:'acompanhamento',at:ago(5)},
+      ]
+    },
+    {
+      id: uid(), name: 'Patrícia Gomes Ferreira', phone: '(41) 98831-4490', email: 'patricia.gf@empresa.com', city: 'Curitiba / PR',
+      phase: 'treinamento', createdAt: ago(45), phaseChangedAt: ago(2),
+      notes: [
+        {text:'Contato via LinkedIn. Perfil muito alinhado com o segmento.', at: ago(45)},
+        {text:'Material de trabalho enviado por Sedex — recebido.', at: ago(8)},
+        {text:'Iniciou módulo 1 do treinamento.', at: ago(2)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(43)},{from:'primeiro_contato',to:'apresentacao',at:ago(38)},
+        {from:'apresentacao',to:'envio_doc',at:ago(32)},{from:'envio_doc',to:'assinatura',at:ago(26)},
+        {from:'assinatura',to:'reconhecimento',at:ago(20)},{from:'reconhecimento',to:'devolucao',at:ago(15)},
+        {from:'devolucao',to:'cadastro',at:ago(12)},{from:'cadastro',to:'codigo',at:ago(10)},
+        {from:'codigo',to:'material',at:ago(8)},{from:'material',to:'treinamento',at:ago(2)},
+      ]
+    },
+    {
+      id: uid(), name: 'Marcelo Henrique Pinto', phone: '(51) 97745-2230', email: 'marcelo.pinto@gmail.com', city: 'Porto Alegre / RS',
+      phase: 'material', createdAt: ago(35), phaseChangedAt: ago(1),
+      notes: [
+        {text:'Código liberado. Aguardando envio do kit de trabalho.', at: ago(3)},
+        {text:'Material enviado via transportadora. Rastreio: BR04927834.', at: ago(1)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(33)},{from:'primeiro_contato',to:'apresentacao',at:ago(28)},
+        {from:'apresentacao',to:'envio_doc',at:ago(22)},{from:'envio_doc',to:'assinatura',at:ago(17)},
+        {from:'assinatura',to:'reconhecimento',at:ago(12)},{from:'reconhecimento',to:'devolucao',at:ago(8)},
+        {from:'devolucao',to:'cadastro',at:ago(5)},{from:'cadastro',to:'codigo',at:ago(3)},
+        {from:'codigo',to:'material',at:ago(1)},
+      ]
+    },
+    {
+      id: uid(), name: 'Ana Paula Rodrigues', phone: '(62) 98190-5577', email: 'ana.rodrigues@vendas.com', city: 'Goiânia / GO',
+      phase: 'cadastro', createdAt: ago(28), phaseChangedAt: ago(2),
+      notes: [
+        {text:'Contrato devolvido em ótimo estado. Cadastro iniciado no sistema.', at: ago(2)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(26)},{from:'primeiro_contato',to:'apresentacao',at:ago(22)},
+        {from:'apresentacao',to:'envio_doc',at:ago(17)},{from:'envio_doc',to:'assinatura',at:ago(13)},
+        {from:'assinatura',to:'reconhecimento',at:ago(9)},{from:'reconhecimento',to:'devolucao',at:ago(5)},
+        {from:'devolucao',to:'cadastro',at:ago(2)},
+      ]
+    },
+    {
+      id: uid(), name: 'Thiago Nascimento', phone: '(85) 99637-1144', email: 'thiago.n@outlook.com', city: 'Fortaleza / CE',
+      phase: 'assinatura', createdAt: ago(20), phaseChangedAt: ago(3),
+      notes: [
+        {text:'Proposta muito bem recebida. Enviado contrato físico e digital.', at: ago(10)},
+        {text:'Confirmou assinatura. Vai reconhecer firma hoje.', at: ago(3)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(19)},{from:'primeiro_contato',to:'apresentacao',at:ago(15)},
+        {from:'apresentacao',to:'envio_doc',at:ago(10)},{from:'envio_doc',to:'assinatura',at:ago(3)},
+      ]
+    },
+    {
+      id: uid(), name: 'Juliana Carvalho Mota', phone: '(71) 98023-9980', email: 'juliana.mota@mail.com', city: 'Salvador / BA',
+      phase: 'envio_doc', createdAt: ago(15), phaseChangedAt: ago(1),
+      notes: [
+        {text:'Apresentação feita por videochamada. Perfil excelente.', at: ago(8)},
+        {text:'Contrato enviado por e-mail e WhatsApp.', at: ago(1)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(14)},{from:'primeiro_contato',to:'apresentacao',at:ago(8)},
+        {from:'apresentacao',to:'envio_doc',at:ago(1)},
+      ]
+    },
+    {
+      id: uid(), name: 'Diego Ferreira Lopes', phone: '(92) 98712-3344', email: 'diego.lopes@gmail.com', city: 'Manaus / AM',
+      phase: 'apresentacao', createdAt: ago(10), phaseChangedAt: ago(2),
+      notes: [
+        {text:'Primeiro contato positivo. Agendou apresentação completa.', at: ago(7)},
+        {text:'Apresentação realizada. Pediu prazo de 2 dias para responder.', at: ago(2)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(8)},{from:'primeiro_contato',to:'apresentacao',at:ago(2)},
+      ]
+    },
+    {
+      id: uid(), name: 'Camila Souza Braga', phone: '(48) 97510-6621', email: 'camila.braga@empresa.br', city: 'Florianópolis / SC',
+      phase: 'primeiro_contato', createdAt: ago(6), phaseChangedAt: ago(6),
+      notes: [
+        {text:'Captada por prospecção ativa. Retornou ligação demonstrando interesse.', at: ago(6)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(6)},
+      ]
+    },
+    {
+      id: uid(), name: 'Fábio Augusto Ribeiro', phone: '(27) 99248-7753', email: 'fabio.ribeiro@outlook.com', city: 'Vitória / ES',
+      phase: 'captacao', createdAt: ago(3), phaseChangedAt: ago(3),
+      notes: [
+        {text:'Perfil identificado em grupo de representantes comerciais. Contato pendente.', at: ago(3)},
+      ],
+      history: []
+    },
+    {
+      id: uid(), name: 'Renata Oliveira Dias', phone: '(83) 98432-1107', email: 'renata.dias@gmail.com', city: 'João Pessoa / PB',
+      phase: 'captacao', createdAt: ago(2), phaseChangedAt: ago(2),
+      notes: [
+        {text:'Indicada pelo representante Carlos Mendes. Aguardando primeiro contato.', at: ago(2)},
+      ],
+      history: []
+    },
+    {
+      id: uid(), name: 'Leonardo Matos Faria', phone: '(61) 99301-4482', email: 'leo.faria@vendas.com', city: 'Brasília / DF',
+      phase: 'boas_vindas', createdAt: ago(50), phaseChangedAt: ago(4),
+      notes: [
+        {text:'Treinamento concluído. Reunião de boas-vindas agendada com o gerente regional.', at: ago(6)},
+        {text:'Reunião de boas-vindas realizada com sucesso.', at: ago(4)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(48)},{from:'primeiro_contato',to:'apresentacao',at:ago(42)},
+        {from:'apresentacao',to:'envio_doc',at:ago(36)},{from:'envio_doc',to:'assinatura',at:ago(30)},
+        {from:'assinatura',to:'reconhecimento',at:ago(25)},{from:'reconhecimento',to:'devolucao',at:ago(20)},
+        {from:'devolucao',to:'cadastro',at:ago(17)},{from:'cadastro',to:'codigo',at:ago(14)},
+        {from:'codigo',to:'material',at:ago(11)},{from:'material',to:'treinamento',at:ago(8)},
+        {from:'treinamento',to:'boas_vindas',at:ago(4)},
+      ]
+    },
+    {
+      id: uid(), name: 'Simone Castro Pires', phone: '(98) 98574-2209', email: 'simone.cp@mail.com', city: 'São Luís / MA',
+      phase: 'reconhecimento', createdAt: ago(25), phaseChangedAt: ago(4),
+      notes: [
+        {text:'Assinou o contrato. Informou que vai ao cartório essa semana.', at: ago(4)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(24)},{from:'primeiro_contato',to:'apresentacao',at:ago(20)},
+        {from:'apresentacao',to:'envio_doc',at:ago(15)},{from:'envio_doc',to:'assinatura',at:ago(8)},
+        {from:'assinatura',to:'reconhecimento',at:ago(4)},
+      ]
+    },
+    {
+      id: uid(), name: 'Anderson Vieira Nunes', phone: '(69) 99143-8830', email: 'anderson.nunes@gmail.com', city: 'Porto Velho / RO',
+      phase: 'devolucao', createdAt: ago(32), phaseChangedAt: ago(6),
+      notes: [
+        {text:'Reconhecimento de firma feito. Aguardando devolução do contrato.', at: ago(9)},
+        {text:'Confirmou que enviou o contrato pelo correio hoje.', at: ago(6)},
+      ],
+      history: [
+        {from:'captacao',to:'primeiro_contato',at:ago(30)},{from:'primeiro_contato',to:'apresentacao',at:ago(26)},
+        {from:'apresentacao',to:'envio_doc',at:ago(20)},{from:'envio_doc',to:'assinatura',at:ago(15)},
+        {from:'assinatura',to:'reconhecimento',at:ago(10)},{from:'reconhecimento',to:'devolucao',at:ago(6)},
+      ]
+    },
+  ];
+
+  localStorage.setItem('reps_v2', JSON.stringify(exemplos));
+  reps = exemplos;
+  renderBoard();
+  if(currentTab==='dash') renderDashboard();
+  alert(`${exemplos.length} representantes de exemplo carregados com sucesso!`);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+populatePhaseFilter();
+renderBoard();
+// Ao abrir, se houver URL configurada, sincroniza automaticamente com a planilha
+if (getSheetsUrl()) {
+  setSyncStatus('syncing');
+  fetchFromSheets().then(data => {
+    if (data !== null && data.length > 0) {
+      reps = data;
+      localStorage.setItem('reps_v2', JSON.stringify(reps));
+      renderBoard();
+      if (currentTab === 'dash') renderDashboard();
+    } else if (data !== null) {
+      // Planilha vazia — envia dados locais
+      pushToSheets(reps);
+    }
+  });
+} else {
+  setSyncStatus('local');
+}
+</script>
+</body>
+</html>
