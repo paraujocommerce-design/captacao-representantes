@@ -310,6 +310,7 @@
       </div>
       <div class="flex gap-2">
         <button onclick="closeConfigModal()" class="btn-ghost">Cancelar</button>
+        <button onclick="enviarDadosLocais()" class="btn-ghost" title="Envia todos os dados do localStorage para o Supabase">⬆ Enviar dados locais</button>
         <button onclick="salvarConfig()" class="btn-primary">Salvar e sincronizar</button>
       </div>
     </div>
@@ -1046,6 +1047,15 @@ async function testarConexao() {
   } catch(e) {
     showTestResult(box, false, 'Falha: ' + (e.message || e) + '. Verifique URL, key e se a tabela foi criada.');
   }
+}
+
+async function enviarDadosLocais() {
+  if (!_supa) { alert('Configure e salve o Supabase primeiro.'); return; }
+  if (!reps.length) { alert('Nenhum dado local para enviar.'); return; }
+  if (!confirm(`Enviar ${reps.length} representante(s) para o Supabase?`)) return;
+  setSyncStatus('syncing');
+  await dbUpsertAll(reps);
+  alert(`${reps.length} representante(s) enviado(s) ao Supabase com sucesso!`);
 }
 
 async function salvarConfig() {
