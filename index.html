@@ -183,10 +183,6 @@
       <option value="">Todas</option>
     </select>
   </div>
-  <button id="toggle-desist-btn" onclick="toggleDesistentes()" class="btn-ghost text-xs flex items-center gap-1.5" title="Mostrar/ocultar desistentes">
-    <span style="width:8px;height:8px;border-radius:50%;background:#f97316;display:inline-block"></span>
-    Desistentes: <span id="toggle-desist-label">OFF</span>
-  </button>
 </div>
 
 <!-- BOARD (kanban) -->
@@ -442,20 +438,16 @@ function switchTab(tab) {
 
 // ─── BOARD ────────────────────────────────────────────────────────────────────
 let showDesistentes = false;
-function toggleDesistentes() {
-  showDesistentes = !showDesistentes;
-  document.getElementById('toggle-desist-label').textContent = showDesistentes ? 'ON' : 'OFF';
-  document.getElementById('toggle-desist-btn').style.borderColor = showDesistentes ? '#f97316' : '';
-  renderBoard();
-}
+function toggleDesistentes() {}
 
 function renderBoard() {
   const q = document.getElementById('search-input').value.toLowerCase().trim();
   const fp = document.getElementById('filter-phase').value;
+  const filterDesist = fp === '__desistente__';
   const filtered = reps.filter(r => {
     const mq = !q || r.name.toLowerCase().includes(q) || (r.city||'').toLowerCase().includes(q) || (r.phone||'').includes(q);
-    const mp = !fp || r.phase === fp;
-    const md = showDesistentes || (r.status||'ativo') !== 'desistente';
+    const mp = filterDesist ? true : (!fp || r.phase === fp);
+    const md = filterDesist ? (r.status||'ativo') === 'desistente' : (r.status||'ativo') !== 'desistente';
     return mq && mp && md;
   });
   const board = document.getElementById('board');
@@ -530,9 +522,14 @@ function populatePhaseFilter() {
   ['filter-phase','f-phase'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
-    if (id === 'filter-phase') sel.innerHTML = '<option value="">Todas as fases</option>';
-    else sel.innerHTML = '';
-    PHASES.forEach(p => { const o=document.createElement('option'); o.value=p.id; o.textContent=p.label; sel.appendChild(o); });
+    if (id === 'filter-phase') {
+      sel.innerHTML = '<option value="">Todas as fases</option>';
+      PHASES.forEach(p => { const o=document.createElement('option'); o.value=p.id; o.textContent=p.label; sel.appendChild(o); });
+      const od=document.createElement('option'); od.value='__desistente__'; od.textContent='Desistentes'; sel.appendChild(od);
+    } else {
+      sel.innerHTML = '';
+      PHASES.forEach(p => { const o=document.createElement('option'); o.value=p.id; o.textContent=p.label; sel.appendChild(o); });
+    }
   });
 }
 
