@@ -6,6 +6,7 @@
   <title>Captação de Representantes</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -51,6 +52,7 @@
     .card-drag:active { cursor: grabbing; transform: scale(0.97); }
     .card-drag.dragging { opacity: 0.45; transform: scale(0.96); }
     .completed-card { border-left: 3px solid #22c55e !important; }
+    .desistente-card { opacity: 0.52; border-left: 3px solid #f97316 !important; filter: grayscale(25%); }
     .drop-target { outline: 2px dashed rgba(255,255,255,0.5); outline-offset: 3px; background: rgba(255,255,255,0.06) !important; border-radius: 12px; }
 
     /* ── PHASE DOT ── */
@@ -181,6 +183,10 @@
       <option value="">Todas</option>
     </select>
   </div>
+  <button id="toggle-desist-btn" onclick="toggleDesistentes()" class="btn-ghost text-xs flex items-center gap-1.5" title="Mostrar/ocultar desistentes">
+    <span style="width:8px;height:8px;border-radius:50%;background:#f97316;display:inline-block"></span>
+    Desistentes: <span id="toggle-desist-label">OFF</span>
+  </button>
 </div>
 
 <!-- BOARD (kanban) -->
@@ -268,13 +274,13 @@
 
 <!-- MODALS ─────────────────────────────────────────────────────────────────── -->
 
-<!-- CONFIG MODAL (Google Sheets) -->
+<!-- CONFIG MODAL (Supabase) -->
 <div id="config-modal" class="modal-overlay hidden">
   <div class="modal-box p-6" style="max-width:600px">
     <div class="flex items-center justify-between mb-5">
       <h2 class="text-lg font-bold text-white flex items-center gap-2">
-        <svg class="w-5 h-5 text-green-400" viewBox="0 0 24 24" fill="currentColor"><path d="M11.318 10.455L8.455 7.591 3 13.046V21h7.954l5.455-5.455-5.091-5.09zm1.414-1.414l2.863 2.863 1.98-1.98-2.862-2.862-1.981 1.98zM19.99 4.01a2 2 0 00-2.828 0l-1.396 1.396 2.828 2.828 1.396-1.396a2 2 0 000-2.828z"/></svg>
-        Integração com Google Sheets
+        <svg class="w-5 h-5 text-green-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+        Integração com Supabase
       </h2>
       <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -282,18 +288,21 @@
     </div>
 
     <!-- Passo a passo -->
-    <div class="bg-slate-900 rounded-xl p-4 mb-4 border border-slate-700 text-sm space-y-2">
+    <div class="rounded-xl p-4 mb-4 text-sm space-y-2" style="background:rgba(0,0,0,0.20);border:1px solid rgba(255,255,255,0.10)">
       <p class="font-semibold text-white mb-3">Como configurar (faça uma vez):</p>
-      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span><span class="text-slate-300">Abra uma planilha Google Sheets e vá em <b class="text-white">Extensões &gt; Apps Script</b></span></div>
-      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span><span class="text-slate-300">Apague o conteúdo e cole o código do arquivo <b class="text-white">apps-script.gs</b> (está na pasta do projeto)</span></div>
-      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span><span class="text-slate-300">Clique em <b class="text-white">Implantar &gt; Nova implantação</b> · Tipo: <b class="text-white">App da Web</b> · Acesso: <b class="text-white">Qualquer pessoa</b></span></div>
-      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">4</span><span class="text-slate-300">Copie a <b class="text-white">URL da implantação</b> e cole abaixo</span></div>
+      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</span><span class="text-slate-300">Acesse <b class="text-white">supabase.com</b> → crie um projeto gratuito</span></div>
+      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</span><span class="text-slate-300">No projeto → <b class="text-white">SQL Editor</b> → cole e execute o SQL da tabela <b class="text-white">representantes</b></span></div>
+      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</span><span class="text-slate-300">Vá em <b class="text-white">Project Settings → API</b> e copie a <b class="text-white">Project URL</b> e a <b class="text-white">anon public key</b></span></div>
+      <div class="flex gap-3"><span class="w-5 h-5 bg-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">4</span><span class="text-slate-300">Cole os valores abaixo e clique em <b class="text-white">Salvar e sincronizar</b></span></div>
     </div>
 
+    <div class="mb-3">
+      <label class="text-xs font-semibold uppercase tracking-wider block mb-1" style="color:rgba(255,255,255,0.5)">Project URL *</label>
+      <input id="config-supa-url" type="url" placeholder="https://xyzxyz.supabase.co" class="input-field" />
+    </div>
     <div class="mb-4">
-      <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">URL do Apps Script *</label>
-      <input id="config-url" type="url" placeholder="https://script.google.com/macros/s/AKfyc.../exec" class="input-field" />
-      <p class="text-xs text-slate-500 mt-1">A URL termina sempre com <code class="text-slate-300">/exec</code></p>
+      <label class="text-xs font-semibold uppercase tracking-wider block mb-1" style="color:rgba(255,255,255,0.5)">Anon Public Key *</label>
+      <input id="config-supa-key" type="text" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="input-field" />
     </div>
 
     <div id="config-test-result" class="hidden mb-4 rounded-lg p-3 text-sm"></div>
@@ -301,7 +310,7 @@
     <div class="flex items-center justify-between gap-2">
       <div class="flex gap-2">
         <button onclick="testarConexao()" class="btn-ghost">Testar conexão</button>
-        <button onclick="desconectarSheets()" class="btn-danger text-xs">Desconectar</button>
+        <button onclick="desconectarSupabase()" class="btn-danger text-xs">Desconectar</button>
       </div>
       <div class="flex gap-2">
         <button onclick="closeConfigModal()" class="btn-ghost">Cancelar</button>
@@ -343,6 +352,15 @@
         <div>
           <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Fase inicial</label>
           <select id="f-phase" class="input-field"></select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Status</label>
+          <select id="f-status" class="input-field">
+            <option value="ativo">Ativo</option>
+            <option value="desistente">Desistente</option>
+          </select>
         </div>
       </div>
       <div>
@@ -423,13 +441,22 @@ function switchTab(tab) {
 }
 
 // ─── BOARD ────────────────────────────────────────────────────────────────────
+let showDesistentes = false;
+function toggleDesistentes() {
+  showDesistentes = !showDesistentes;
+  document.getElementById('toggle-desist-label').textContent = showDesistentes ? 'ON' : 'OFF';
+  document.getElementById('toggle-desist-btn').style.borderColor = showDesistentes ? '#f97316' : '';
+  renderBoard();
+}
+
 function renderBoard() {
   const q = document.getElementById('search-input').value.toLowerCase().trim();
   const fp = document.getElementById('filter-phase').value;
   const filtered = reps.filter(r => {
     const mq = !q || r.name.toLowerCase().includes(q) || (r.city||'').toLowerCase().includes(q) || (r.phone||'').includes(q);
     const mp = !fp || r.phase === fp;
-    return mq && mp;
+    const md = showDesistentes || (r.status||'ativo') !== 'desistente';
+    return mq && mp && md;
   });
   const board = document.getElementById('board');
   board.innerHTML = '';
@@ -457,7 +484,8 @@ function renderBoard() {
 
 function buildCard(r, phase) {
   const el = document.createElement('div');
-  el.className = `card-drag select-none p-3 ${phase.final?'completed-card':''}`;
+  const isDesist = (r.status||'ativo') === 'desistente';
+  el.className = `card-drag select-none p-3 ${phase.final?'completed-card':''} ${isDesist?'desistente-card':''}`;
   el.draggable = true; el.dataset.id = r.id;
   el.addEventListener('dragstart', onDragStart);
   el.addEventListener('dragend', onDragEnd);
@@ -465,12 +493,13 @@ function buildCard(r, phase) {
   const lastNote = r.notes&&r.notes.length ? r.notes[r.notes.length-1] : null;
   const daysSince = r.phaseChangedAt ? Math.floor((Date.now()-r.phaseChangedAt)/86400000) : 0;
   el.innerHTML = `
-    <div class="flex items-start justify-between gap-1 mb-2">
+    <div class="flex items-start justify-between gap-1 mb-1">
       <span class="text-sm font-semibold text-white leading-tight cursor-pointer hover:text-blue-200 transition-colors" onclick="openDetail('${r.id}')">${escHtml(r.name)}</span>
       <button onclick="openDetail('${r.id}')" class="flex-shrink-0 mt-0.5 transition-colors" style="color:rgba(255,255,255,0.4)" onmouseover="this.style.color='rgba(255,255,255,0.9)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
       </button>
     </div>
+    ${isDesist?`<span style="font-size:10px;background:rgba(249,115,22,0.2);color:#f97316;border:1px solid rgba(249,115,22,0.4);border-radius:999px;padding:1px 7px;display:inline-block;margin-bottom:4px">Desistente</span>`:''}
     ${r.city?`<div class="text-xs mb-0.5" style="color:rgba(255,255,255,0.55)">${escHtml(r.city)}</div>`:''}
     ${r.phone?`<div class="text-xs mb-1" style="color:rgba(255,255,255,0.4)">${escHtml(r.phone)}</div>`:''}
     <div class="progress-bar-bg mt-2 mb-1"><div class="progress-bar-fill" style="width:${progress}%;background:linear-gradient(90deg,${phase.color},${phase.final?'#22c55e':'#93c5fd'})"></div></div>
@@ -483,12 +512,16 @@ function buildCard(r, phase) {
 }
 
 function updateStats() {
-  const total = reps.length, concluded = reps.filter(r=>r.phase==='concluido').length;
+  const total = reps.length;
+  const concluded = reps.filter(r=>r.phase==='concluido').length;
+  const desist = reps.filter(r=>(r.status||'ativo')==='desistente').length;
+  const active = total - concluded - desist;
   const conv = total ? Math.round((concluded/total)*100) : 0;
   document.getElementById('stats-bar').innerHTML = `
     <span><b class="text-white">${total}</b> total</span>
-    <span><b class="text-blue-400">${total-concluded}</b> ativos</span>
+    <span><b class="text-blue-300">${active}</b> ativos</span>
     <span><b class="text-green-400">${concluded}</b> concluídos</span>
+    <span><b style="color:#f97316">${desist}</b> desistentes</span>
     <span><b class="text-yellow-400">${conv}%</b> conversão</span>`;
 }
 
@@ -535,6 +568,7 @@ function openEditModal(id) {
   document.getElementById('f-email').value=r.email||'';
   document.getElementById('f-city').value=r.city||'';
   document.getElementById('f-phase').value=r.phase||PHASES[0].id;
+  document.getElementById('f-status').value=r.status||'ativo';
   document.getElementById('f-note').value='';
   closeDetail();
   document.getElementById('form-modal').classList.remove('hidden');
@@ -547,21 +581,26 @@ function saveRep(e) {
   const email=document.getElementById('f-email').value.trim();
   const city=document.getElementById('f-city').value.trim();
   const phase=document.getElementById('f-phase').value;
+  const status=document.getElementById('f-status').value;
   const note=document.getElementById('f-note').value.trim();
   if(!name) return;
+  let savedRep;
   if(editingId) {
     const rep=reps.find(r=>r.id===editingId);
     if(rep) {
       if(rep.phase!==phase){if(!rep.history)rep.history=[];rep.history.push({from:rep.phase,to:phase,at:Date.now()});rep.phaseChangedAt=Date.now();}
-      rep.name=name;rep.phone=phone;rep.email=email;rep.city=city;rep.phase=phase;
+      rep.name=name;rep.phone=phone;rep.email=email;rep.city=city;rep.phase=phase;rep.status=status;
       if(note){if(!rep.notes)rep.notes=[];rep.notes.push({text:note,at:Date.now()});}
+      savedRep=rep;
     }
   } else {
-    const rep={id:uid(),name,phone,email,city,phase,notes:[],history:[],createdAt:Date.now(),phaseChangedAt:Date.now()};
+    const rep={id:uid(),name,phone,email,city,phase,status,notes:[],history:[],createdAt:Date.now(),phaseChangedAt:Date.now()};
     if(note) rep.notes.push({text:note,at:Date.now()});
     reps.unshift(rep);
+    savedRep=rep;
   }
-  saveData(reps); closeFormModal(); renderBoard();
+  saveData(reps); if(savedRep) dbUpsert(savedRep);
+  closeFormModal(); renderBoard();
   if(currentTab==='dash') renderDashboard();
 }
 
@@ -621,7 +660,7 @@ function movePhase(id,phaseId) {
   if(!rep.history) rep.history=[];
   rep.history.push({from:rep.phase,to:phaseId,at:Date.now()});
   rep.phase=phaseId; rep.phaseChangedAt=Date.now();
-  saveData(reps); renderBoard(); renderDetail(rep);
+  saveData(reps); dbUpsert(rep); renderBoard(); renderDetail(rep);
   if(currentTab==='dash') renderDashboard();
 }
 function jumpPhase(id) { const s=document.getElementById('jump-phase-sel'); if(s) movePhase(id,s.value); }
@@ -629,15 +668,17 @@ function addNote(id) {
   const rep=reps.find(r=>r.id===id); const text=document.getElementById('new-note-text').value.trim();
   if(!rep||!text) return;
   if(!rep.notes) rep.notes=[];
-  rep.notes.push({text,at:Date.now()}); saveData(reps); renderBoard(); renderDetail(rep);
+  rep.notes.push({text,at:Date.now()}); saveData(reps); dbUpsert(rep); renderBoard(); renderDetail(rep);
 }
 
 // ─── DELETE ───────────────────────────────────────────────────────────────────
 function confirmDelete(id) { deletingId=id; document.getElementById('confirm-modal').classList.remove('hidden'); }
 function closeConfirm() { document.getElementById('confirm-modal').classList.add('hidden'); deletingId=null; }
 document.getElementById('confirm-delete-btn').addEventListener('click',()=>{
-  if(!deletingId) return; reps=reps.filter(r=>r.id!==deletingId);
-  saveData(reps); closeConfirm(); closeDetail(); renderBoard();
+  if(!deletingId) return;
+  const id=deletingId;
+  reps=reps.filter(r=>r.id!==id);
+  saveData(reps); dbDelete(id); closeConfirm(); closeDetail(); renderBoard();
   if(currentTab==='dash') renderDashboard();
 });
 
@@ -645,7 +686,8 @@ document.getElementById('confirm-delete-btn').addEventListener('click',()=>{
 function computeMetrics() {
   const total=reps.length;
   const concluded=reps.filter(r=>r.phase==='concluido').length;
-  const active=total-concluded;
+  const desistentes=reps.filter(r=>(r.status||'ativo')==='desistente').length;
+  const active=total-concluded-desistentes;
   const convRate=total?+(concluded/total*100).toFixed(1):0;
 
   // distribuição por fase
@@ -687,7 +729,7 @@ function computeMetrics() {
     return reps.filter(r=>(PHASE_INDEX[r.phase]??0)>=idx).length;
   });
 
-  return {total,concluded,active,convRate,byPhase,monthly,months,funnelCount,phaseTimeSum,phaseTimeCount};
+  return {total,concluded,active,desistentes,convRate,byPhase,monthly,months,funnelCount,phaseTimeSum,phaseTimeCount};
 }
 
 function renderDashboard() {
@@ -695,20 +737,19 @@ function renderDashboard() {
 
   // KPIs
   const avgPhaseIdx=reps.length ? reps.reduce((s,r)=>(s+(PHASE_INDEX[r.phase]??0)),0)/reps.length : 0;
-  const dropAtFirst=m.total>0?+(( (m.byPhase['captacao']||0)/m.total)*100).toFixed(0):0;
   const kpis=[
-    {label:'Total Captados', value:m.total, color:'#3b82f6', icon:'👥'},
-    {label:'Ativos no Funil', value:m.active, color:'#8b5cf6', icon:'⚡'},
-    {label:'Primeira Venda', value:m.concluded, color:'#22c55e', icon:'✅'},
-    {label:'Taxa de Conversão', value:m.convRate+'%', color:'#f59e0b', icon:'🎯'},
-    {label:'Progresso Médio', value:Math.round(((avgPhaseIdx+1)/PHASES.length)*100)+'%', color:'#0ea5e9', icon:'📈'},
-    {label:'Na Captação', value:m.byPhase['captacao']||0, color:'#6366f1', icon:'🔍'},
+    {label:'Total Captados',    value:m.total,                                              color:'#3b82f6', icon:'👥'},
+    {label:'Ativos no Funil',   value:m.active,                                             color:'#8b5cf6', icon:'⚡'},
+    {label:'Primeira Venda',    value:m.concluded,                                          color:'#22c55e', icon:'✅'},
+    {label:'Desistentes',       value:m.desistentes,                                        color:'#f97316', icon:'🚫'},
+    {label:'Taxa de Conversão', value:m.convRate+'%',                                       color:'#f59e0b', icon:'🎯'},
+    {label:'Progresso Médio',   value:Math.round(((avgPhaseIdx+1)/PHASES.length)*100)+'%', color:'#0ea5e9', icon:'📈'},
   ];
   document.getElementById('kpi-row').innerHTML=kpis.map(k=>`
     <div class="kpi-card">
       <div class="text-2xl mb-1">${k.icon}</div>
       <div class="text-2xl font-bold" style="color:${k.color}">${k.value}</div>
-      <div class="text-xs text-slate-400 mt-1">${k.label}</div>
+      <div class="text-xs mt-1" style="color:rgba(255,255,255,0.5)">${k.label}</div>
     </div>`).join('');
 
   // Chart: distribuição por fase
@@ -719,13 +760,13 @@ function renderDashboard() {
   chartPhases=new Chart(document.getElementById('chart-phases'),{
     type:'bar',
     data:{labels:phaseLabels,datasets:[{label:'Representantes',data:phaseData,backgroundColor:phaseColors.map(c=>c+'bb'),borderColor:phaseColors,borderWidth:1.5,borderRadius:5}]},
-    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#1e293b'}},y:{ticks:{color:'#94a3b8',stepSize:1},grid:{color:'#334155'}}}}
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'rgba(255,255,255,0.5)',font:{size:10}},grid:{color:'rgba(0,0,0,0.2)'}},y:{ticks:{color:'rgba(255,255,255,0.5)',stepSize:1},grid:{color:'rgba(0,0,0,0.2)'}}}}
   });
 
-  // Chart: status (doughnut)
-  const statusData=[m.active, m.concluded];
-  const statusLabels=['Ativos','Concluídos'];
-  const statusColors=['#3b82f6','#22c55e'];
+  // Chart: status (doughnut) — 3 fatias
+  const statusData=[m.active, m.concluded, m.desistentes];
+  const statusLabels=['Ativos','Concluídos','Desistentes'];
+  const statusColors=['#3b82f6','#22c55e','#f97316'];
   if(chartStatus) chartStatus.destroy();
   chartStatus=new Chart(document.getElementById('chart-status'),{
     type:'doughnut',
@@ -816,6 +857,7 @@ function emitirRelatorio() {
   const repRows=sorted.map(r=>{
     const phase=phaseById(r.phase), prog=phaseProgress(r.phase);
     const days=r.phaseChangedAt?Math.floor((Date.now()-r.phaseChangedAt)/86400000):0;
+    const statusLabel=r.status==='desistente'?'<span style="color:#f97316;font-weight:700">Desistente</span>':'Ativo';
     return `<tr style="border-bottom:1px solid #f1f5f9">
       <td style="padding:5px 8px;font-size:11px">${escHtml(r.name)}</td>
       <td style="padding:5px 8px;font-size:11px">${escHtml(r.phone||'—')}</td>
@@ -824,6 +866,7 @@ function emitirRelatorio() {
       <td style="padding:5px 8px;font-size:11px;text-align:center">${prog}%</td>
       <td style="padding:5px 8px;font-size:11px;text-align:center">${days}d</td>
       <td style="padding:5px 8px;font-size:11px">${fmtDate(r.createdAt)}</td>
+      <td style="padding:5px 8px;font-size:11px;text-align:center">${statusLabel}</td>
     </tr>`;
   }).join('');
 
@@ -853,6 +896,7 @@ function emitirRelatorio() {
     <div class="kpi"><div class="kpi-val">${m.total}</div><div class="kpi-label">Total Captados</div></div>
     <div class="kpi"><div class="kpi-val" style="color:#7c3aed">${m.active}</div><div class="kpi-label">Ativos no Funil</div></div>
     <div class="kpi"><div class="kpi-val" style="color:#16a34a">${m.concluded}</div><div class="kpi-label">Primeira Venda</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#f97316">${m.desistentes}</div><div class="kpi-label">Desistentes</div></div>
     <div class="kpi"><div class="kpi-val" style="color:#d97706">${m.convRate}%</div><div class="kpi-label">Taxa de Conversão Global</div></div>
   </div>
 
@@ -864,7 +908,7 @@ function emitirRelatorio() {
 
   <h2>Lista Detalhada de Representantes</h2>
   <table>
-    <thead><tr><th>Nome</th><th>Telefone</th><th>Cidade</th><th>Fase Atual</th><th style="text-align:center">Progresso</th><th style="text-align:center">Dias na Fase</th><th>Cadastro</th></tr></thead>
+    <thead><tr><th>Nome</th><th>Telefone</th><th>Cidade</th><th>Fase Atual</th><th style="text-align:center">Progresso</th><th style="text-align:center">Dias na Fase</th><th>Cadastro</th><th style="text-align:center">Status</th></tr></thead>
     <tbody>${repRows}</tbody>
   </table>
 
@@ -886,130 +930,160 @@ document.getElementById('confirm-modal').addEventListener('click',function(e){if
 document.getElementById('config-modal').addEventListener('click',function(e){if(e.target===this)closeConfigModal();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeFormModal();closeDetail();closeConfirm();closeConfigModal();}});
 
-// ─── GOOGLE SHEETS INTEGRATION ───────────────────────────────────────────────
-const SHEETS_URL_KEY = 'sheets_url_v1';
+// ─── SUPABASE INTEGRATION ─────────────────────────────────────────────────────
+const SUPA_KEY = 'supa_config_v1';
+let _supa = null;
 
-function getSheetsUrl() { return localStorage.getItem(SHEETS_URL_KEY) || ''; }
+function getSupabaseConfig() {
+  try { return JSON.parse(localStorage.getItem(SUPA_KEY) || 'null'); } catch { return null; }
+}
+
+function initSupabase(url, key) {
+  _supa = supabase.createClient(url, key);
+}
 
 function setSyncStatus(state) {
   const dot   = document.getElementById('sync-dot');
   const label = document.getElementById('sync-label');
-  const states = {
-    local:   { color: 'bg-slate-500',  text: 'Local',       textColor: 'text-slate-400' },
-    syncing: { color: 'bg-yellow-400 animate-pulse', text: 'Sincronizando…', textColor: 'text-yellow-400' },
-    ok:      { color: 'bg-green-400',  text: 'Sheets ✓',    textColor: 'text-green-400' },
-    error:   { color: 'bg-red-400',    text: 'Erro Sheets',  textColor: 'text-red-400' },
+  const map = {
+    local:   { cls: 'bg-slate-500',             text: 'Local',          tcls: 'text-slate-400'  },
+    syncing: { cls: 'bg-yellow-400 animate-pulse', text: 'Sincronizando…', tcls: 'text-yellow-400' },
+    ok:      { cls: 'bg-green-400',              text: 'Supabase ✓',    tcls: 'text-green-400'  },
+    error:   { cls: 'bg-red-400',               text: 'Erro Supabase',  tcls: 'text-red-400'    },
   };
-  const s = states[state] || states.local;
-  dot.className   = `w-2 h-2 rounded-full ${s.color}`;
-  label.className = `text-xs ${s.textColor}`;
+  const s = map[state] || map.local;
+  dot.className   = `w-2 h-2 rounded-full ${s.cls}`;
+  label.className = `text-xs ${s.tcls}`;
   label.textContent = s.text;
 }
 
-async function fetchFromSheets() {
-  const url = getSheetsUrl(); if (!url) return null;
-  setSyncStatus('syncing');
-  try {
-    const res  = await fetch(url, { method: 'GET' });
-    const json = await res.json();
-    if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
-    setSyncStatus('ok');
-    return json.data;
-  } catch(e) {
-    setSyncStatus('error');
-    console.error('fetchFromSheets:', e);
-    return null;
-  }
+function repToRow(r) {
+  return {
+    id: r.id, name: r.name, phone: r.phone||'', email: r.email||'',
+    city: r.city||'', phase: r.phase||'captacao', status: r.status||'ativo',
+    created_at: r.createdAt||null, phase_changed_at: r.phaseChangedAt||null,
+    notes: r.notes||[], history: r.history||[],
+  };
 }
 
-async function pushToSheets(data) {
-  const url = getSheetsUrl(); if (!url) return;
-  setSyncStatus('syncing');
-  try {
-    const res  = await fetch(url, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    JSON.stringify({ data }),
-    });
-    const json = await res.json();
-    if (!json.ok) throw new Error(json.error || 'Erro desconhecido');
-    setSyncStatus('ok');
-  } catch(e) {
-    setSyncStatus('error');
-    console.error('pushToSheets:', e);
-  }
+function rowToRep(row) {
+  return {
+    id: row.id, name: row.name, phone: row.phone, email: row.email,
+    city: row.city, phase: row.phase, status: row.status||'ativo',
+    createdAt: row.created_at, phaseChangedAt: row.phase_changed_at,
+    notes: row.notes||[], history: row.history||[],
+  };
 }
 
-async function saveDataAndSync(data) {
-  localStorage.setItem('reps_v2', JSON.stringify(data));
-  await pushToSheets(data);
+async function dbLoad() {
+  if (!_supa) return null;
+  setSyncStatus('syncing');
+  try {
+    const { data, error } = await _supa.from('representantes').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    setSyncStatus('ok');
+    return (data || []).map(rowToRep);
+  } catch(e) { setSyncStatus('error'); console.error('dbLoad:', e); return null; }
+}
+
+async function dbUpsert(rep) {
+  if (!_supa) return;
+  setSyncStatus('syncing');
+  try {
+    const { error } = await _supa.from('representantes').upsert(repToRow(rep), { onConflict: 'id' });
+    if (error) throw error;
+    setSyncStatus('ok');
+  } catch(e) { setSyncStatus('error'); console.error('dbUpsert:', e); }
+}
+
+async function dbDelete(id) {
+  if (!_supa) return;
+  setSyncStatus('syncing');
+  try {
+    const { error } = await _supa.from('representantes').delete().eq('id', id);
+    if (error) throw error;
+    setSyncStatus('ok');
+  } catch(e) { setSyncStatus('error'); console.error('dbDelete:', e); }
+}
+
+async function dbUpsertAll(data) {
+  if (!_supa) return;
+  setSyncStatus('syncing');
+  try {
+    const { error } = await _supa.from('representantes').upsert(data.map(repToRow), { onConflict: 'id' });
+    if (error) throw error;
+    setSyncStatus('ok');
+  } catch(e) { setSyncStatus('error'); console.error('dbUpsertAll:', e); }
 }
 
 // ─── CONFIG MODAL ─────────────────────────────────────────────────────────────
 function openConfigModal() {
-  document.getElementById('config-url').value = getSheetsUrl();
+  const cfg = getSupabaseConfig();
+  document.getElementById('config-supa-url').value = cfg?.url || '';
+  document.getElementById('config-supa-key').value = cfg?.key || '';
   document.getElementById('config-test-result').className = 'hidden mb-4 rounded-lg p-3 text-sm';
   document.getElementById('config-modal').classList.remove('hidden');
 }
 function closeConfigModal() { document.getElementById('config-modal').classList.add('hidden'); }
 
-async function testarConexao() {
-  const url = document.getElementById('config-url').value.trim();
-  const box = document.getElementById('config-test-result');
-  if (!url) { showTestResult(box, false, 'Cole a URL antes de testar.'); return; }
-  showTestResult(box, null, 'Testando conexão…');
-  try {
-    const res  = await fetch(url);
-    const json = await res.json();
-    if (json.ok) {
-      showTestResult(box, true, `Conexão OK — ${json.data.length} representante(s) na planilha.`);
-    } else {
-      showTestResult(box, false, 'Resposta inválida: ' + (json.error || ''));
-    }
-  } catch(e) {
-    showTestResult(box, false, 'Falha na conexão: ' + e.message + '. Verifique se a implantação está ativa e com acesso "Qualquer pessoa".');
-  }
-}
-
 function showTestResult(box, ok, msg) {
-  box.className = `mb-4 rounded-lg p-3 text-sm ${ok === null ? 'bg-slate-700 text-slate-300' : ok ? 'bg-green-900/40 border border-green-700 text-green-300' : 'bg-red-900/40 border border-red-700 text-red-300'}`;
+  const base = 'mb-4 rounded-lg p-3 text-sm ';
+  box.className = base + (ok === null ? 'text-slate-300' : ok
+    ? 'text-green-300' : 'text-red-300');
+  box.style.background = ok === null ? 'rgba(0,0,0,0.2)' : ok ? 'rgba(34,197,94,0.15)' : 'rgba(220,38,38,0.15)';
+  box.style.border = ok === null ? '' : ok ? '1px solid #16a34a' : '1px solid #dc2626';
   box.textContent = msg;
 }
 
+async function testarConexao() {
+  const url = document.getElementById('config-supa-url').value.trim();
+  const key = document.getElementById('config-supa-key').value.trim();
+  const box = document.getElementById('config-test-result');
+  if (!url || !key) { showTestResult(box, false, 'Preencha URL e Anon Key antes de testar.'); return; }
+  showTestResult(box, null, 'Testando conexão…');
+  try {
+    const tmp = supabase.createClient(url, key);
+    const { data, error } = await tmp.from('representantes').select('id').limit(1);
+    if (error) throw error;
+    showTestResult(box, true, `Conexão OK — tabela "representantes" encontrada.`);
+  } catch(e) {
+    showTestResult(box, false, 'Falha: ' + (e.message || e) + '. Verifique URL, key e se a tabela foi criada.');
+  }
+}
+
 async function salvarConfig() {
-  const url = document.getElementById('config-url').value.trim();
-  if (!url) { alert('Cole a URL do Apps Script.'); return; }
-  if (!url.includes('script.google.com')) { alert('URL inválida. Deve ser uma URL do Google Apps Script.'); return; }
-  localStorage.setItem(SHEETS_URL_KEY, url);
+  const url = document.getElementById('config-supa-url').value.trim();
+  const key = document.getElementById('config-supa-key').value.trim();
+  if (!url || !key) { alert('Preencha URL e Anon Key.'); return; }
+  if (!url.includes('supabase.co')) { alert('URL inválida. Deve ser uma URL do Supabase (*.supabase.co).'); return; }
+  localStorage.setItem(SUPA_KEY, JSON.stringify({ url, key }));
+  initSupabase(url, key);
   closeConfigModal();
-  // Puxa dados da planilha (planilha tem prioridade sobre localStorage)
-  const remoteData = await fetchFromSheets();
-  if (remoteData !== null) {
+  const remoteData = await dbLoad();
+  if (remoteData !== null && remoteData.length > 0) {
     reps = remoteData;
     localStorage.setItem('reps_v2', JSON.stringify(reps));
     renderBoard();
     if (currentTab === 'dash') renderDashboard();
-    alert(`Sincronizado! ${reps.length} representante(s) carregado(s) da planilha.`);
+    alert(`Sincronizado! ${reps.length} representante(s) carregado(s) do Supabase.`);
   } else {
-    // Planilha vazia ou erro — envia dados locais para a planilha
-    await pushToSheets(reps);
-    alert(`URL salva. Dados locais enviados para a planilha (${reps.length} representante(s)).`);
+    await dbUpsertAll(reps);
+    alert(`Configurado! Dados locais enviados ao Supabase (${reps.length} representante(s)).`);
   }
 }
 
-function desconectarSheets() {
-  if (!confirm('Desconectar do Google Sheets? Os dados locais são mantidos.')) return;
-  localStorage.removeItem(SHEETS_URL_KEY);
+function desconectarSupabase() {
+  if (!confirm('Desconectar do Supabase? Os dados locais são mantidos.')) return;
+  localStorage.removeItem(SUPA_KEY);
+  _supa = null;
   setSyncStatus('local');
   closeConfigModal();
 }
 
-// Sobrescreve saveData para sincronizar automaticamente
-const _saveDataOriginal = saveData;
-function saveData(data) {
-  localStorage.setItem('reps_v2', JSON.stringify(data));
-  if (getSheetsUrl()) pushToSheets(data);
-}
+// saveData = cache local; saveOne = local + Supabase; deleteOne = local + Supabase
+function saveData(data) { localStorage.setItem('reps_v2', JSON.stringify(data)); }
+function saveOne(rep)   { saveData(reps); dbUpsert(rep); }
+function deleteOne(id)  { reps = reps.filter(r => r.id !== id); saveData(reps); dbDelete(id); }
 
 // ─── DADOS DE EXEMPLO ────────────────────────────────────────────────────────
 function carregarDadosExemplo() {
@@ -1227,23 +1301,21 @@ function carregarDadosExemplo() {
   renderBoard();
   if(currentTab==='dash') renderDashboard();
   alert(`${exemplos.length} representantes de exemplo carregados com sucesso!`);
+  dbUpsertAll(reps);
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 populatePhaseFilter();
 renderBoard();
-// Ao abrir, se houver URL configurada, sincroniza automaticamente com a planilha
-if (getSheetsUrl()) {
-  setSyncStatus('syncing');
-  fetchFromSheets().then(data => {
-    if (data !== null && data.length > 0) {
+const _initCfg = getSupabaseConfig();
+if (_initCfg) {
+  initSupabase(_initCfg.url, _initCfg.key);
+  dbLoad().then(data => {
+    if (data && data.length > 0) {
       reps = data;
       localStorage.setItem('reps_v2', JSON.stringify(reps));
       renderBoard();
       if (currentTab === 'dash') renderDashboard();
-    } else if (data !== null) {
-      // Planilha vazia — envia dados locais
-      pushToSheets(reps);
     }
   });
 } else {
